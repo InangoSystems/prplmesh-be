@@ -71,12 +71,14 @@
 require("mmx/ing_utils")
 require("ubus")
 
+-- Global variable for saving mmx string
+mmx_out_str = ""
 
 --[[
     @brief Write errors to stderr
 --]]
 local function error(message)
-    io.stderr:write("[ERROR] " .. tostring(msg) .. "\n")
+    io.stderr:write("[ERROR] " .. message .. "\n")
 end
 
 
@@ -102,6 +104,11 @@ local function get_indexes(path)
         return false
     end
 
+    if not path then
+        error("Bad path: " .. tostring(path))
+        return false
+    end
+
     -- Retrieve output from list method via path from UBus
     instance = _ubus_connection:call(path, "list", { })
     if not instance then
@@ -111,7 +118,7 @@ local function get_indexes(path)
     end
 
     if not instance then
-        error("Failed to get intance table from UBus, path: " .. path)
+        error("Failed to get intance table from UBus, path: " .. tostring(path))
         return false
     end
 
@@ -217,78 +224,6 @@ end
 
 
 --[[
-    @brief  Clears file.
-
-    @param  path String with path to file.
-    @return True on success otherwise false.
---]]
-local function clear_mmx_out(path)
-
-    file = io.open(path, "w")
-    if not file then
-        error("Failed to open file: " .. path)
-        return false
-    end
-
-    io.close(file)
-
-    return true
---clear_mmx_out()
-end
-
-
---[[
-    @brief  Write data to file.
-
-    @param  path String with path to file.
-    @param  data String with data in mmx format.
-            Example: 1,1,1;
-
-    @return True on success otherwise false.
---]]
-local function write_mmx_out(path, data)
-
-    local file = io.open(path, "a+")
-
-    if not file then
-        error("Failed to open file: " .. path)
-        return false
-    end
-
-    io.output(file)
-    io.write(data)
-
-    io.close(file)
-
-    return true
---write_mmx_out()
-end
-
-
---[[
-    @brief  Read data from file.
-
-    @param  path String with path to file.
-    @return mmx-style string on success otherwise false.
---]]
-local function read_mmx_out(path)
-
-    local file = io.open(path, "r")
-    if not file then
-        error("Failed to open file: " .. path)
-        return false
-    end
-
-    io.input(file)
-    local out = io.read()
-    io.close(file)
-
-    return out
---read_mmx_out()
-end
-
-
---[[
     @brief  Create specific B-tree root object..
 
     @param  root_path String with path to root object.
@@ -296,7 +231,7 @@ end
     @param  path Path to file for saving results.
     @return Table for root object otherwise false.
 --]]
-local function tree_create(root_path, last, path)
+local function tree_create(root_path, last)
 
     if type(root_path) ~= "string" then
         error("Bad argument given")
@@ -314,12 +249,16 @@ local function tree_create(root_path, last, path)
     }
 
     root.idx_tbl = get_indexes(root_path)
+    if not root.idx_tbl then
+        error("Root index table empty.")
+        return false
+    end
 
     local tmp = ""
     if root.name == last then
         for count, idx in pairs(root.idx_tbl) do
             tmp = tostring(idx) .. ";"
-            write_mmx_out(path, tmp)
+            mmx_out_str = tostring(mmx_out_str) .. tostring(tmp)
         end
     end
 
@@ -365,7 +304,7 @@ local function tree_add_node(root, node_name)
 
     local idx_tbl_size = get_table_size(root.idx_tbl)
     if  not idx_tbl_size or root_tbl_size == 0 then
-        error("Bad " .. root.path .. " index table size, idx_tbl_size: " .. tostring(idx_tbl_size))
+        error("Bad " .. tostring(root.path) .. " index table size, idx_tbl_size: " .. tostring(idx_tbl_size))
         return false
     end
 
@@ -415,13 +354,13 @@ end
     @param  root String with path to root object.
     @param  path Path to file.
 --]]
-local function dfs(root, path)
+local function dfs(root)
     if root and root.idx_tbl then
         for count, idx in pairs(root.idx_tbl) do
             dfs(root.k[idx], path)
             if root.name == root.last and not root.visited then
                 root.visited = true
-                write_mmx_out(path, root.mmx_out)
+                mmx_out_str = tostring(mmx_out_str) .. tostring(root.mmx_out)
             end
         end
     end
@@ -436,12 +375,8 @@ end
 --]]
 local function get_mmx_out(path)
 
-
-    local mmx_out_file = "/tmp/getall"
     local dm_table = {}
     local dm_size = 0
-
-    clear_mmx_out(mmx_out_file)
 
     dm_table = get_dm_table(path)
     if not dm_table then
@@ -458,23 +393,16 @@ local function get_mmx_out(path)
     local root
     for idx_tbl in pairs(dm_table) do
         if idx_tbl == 1 then
-            root = tree_create(dm_table[idx_tbl], dm_table[dm_size], mmx_out_file)
+            root = tree_create(dm_table[idx_tbl], dm_table[dm_size])
         else
             root.last = dm_table[dm_size]
             tree_add_node(root, dm_table[idx_tbl])
         end
     end
 
-    dfs(root, mmx_out_file)
+    dfs(root)
 
-    read_result = read_mmx_out(mmx_out_file)
-    if not read_result then
-        error("Failed to read " .. mmx_out_file)
-        return false
-    end
-
-    local mmx = tostring(ing.ResCode.SUCCESS) .. ";" .. read_mmx_out(mmx_out_file)
-    os.remove(mmx_out_file)
+   local mmx = tostring(ing.ResCode.SUCCESS) .. ";" .. mmx_out_str
 
     return mmx
 --get_mmx_out
