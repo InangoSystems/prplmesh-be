@@ -73,6 +73,14 @@ require("ubus")
 
 
 --[[
+    @brief Write errors to stderr
+--]]
+local function error(message)
+    io.stderr:write("[ERROR] " .. tostring(msg) .. "\n")
+end
+
+
+--[[
     @brief  Function for getting indexes from UBus via list
             function provided by Ambiorix library.
 
@@ -90,19 +98,20 @@ local function get_indexes(path)
 
     _ubus_connection = ubus.connect()
     if not _ubus_connection then
-        print("Ubus sock conn fail")
+        error("Ubus sock conn fail")
         return false
     end
 
     -- Retrieve output from list method via path from UBus
     instance = _ubus_connection:call(path, "list", { })
     if not instance then
-        print(path .. " not found in UBus")
+        error(path .. " not found in UBus")
+        _ubus_connection:close()
         return false
     end
 
     if not instance then
-        print("Failed to get intance table from UBus, path: " .. path)
+        error("Failed to get intance table from UBus, path: " .. path)
         return false
     end
 
@@ -119,7 +128,7 @@ end
 
 
 --[[
-    @brief  Function for convrerting path to table.
+    @brief  Function splits object path string into list of root and sub-objects.
             Example: Controller.Network.Device.{i}.Radio.{i}
                      Will be converted in table:
                         Controller.Network.Device
@@ -133,11 +142,10 @@ end
 local function get_dm_table(path)
 
     if not path then
-        print("Bad path.")
+        error("Bad path.")
         return false
     end
 
-    local tmp = {}
     local parsed_args = {}
 
     for match in string.gmatch(path, "(.-)[.]{i}[.]?") do
@@ -158,7 +166,7 @@ end
 local function get_table_size(data)
 
     if not data or tostring(type(data)) ~= "table" then
-        print("Bad data: " .. tostring(data))
+        error("Bad data: " .. tostring(data))
         return false
     end
 
@@ -191,12 +199,12 @@ end
 local function get_obj_path(root_path, obj_path, idx)
 
     if ((type(root_path)~= "string" or type(obj_path)) ~= "string") then
-        print "Bad arguments given"
+        error "Bad arguments given"
         return false
     end
 
     if (type(idx) ~= "number") or idx <= 0 then
-        print("Bad index, idx: " .. tostring(idx))
+        error("Bad index, idx: " .. tostring(idx))
         return false
     end
     local out
@@ -218,7 +226,7 @@ local function clear_mmx_out(path)
 
     file = io.open(path, "w")
     if not file then
-        print("Failed to open file: " .. path)
+        error("Failed to open file: " .. path)
         return false
     end
 
@@ -243,7 +251,7 @@ local function write_mmx_out(path, data)
     local file = io.open(path, "a+")
 
     if not file then
-        print("Failed to open file: " .. path)
+        error("Failed to open file: " .. path)
         return false
     end
 
@@ -267,7 +275,7 @@ local function read_mmx_out(path)
 
     local file = io.open(path, "r")
     if not file then
-        print("Failed to open file: " .. path)
+        error("Failed to open file: " .. path)
         return false
     end
 
@@ -291,7 +299,7 @@ end
 local function tree_create(root_path, last, path)
 
     if type(root_path) ~= "string" then
-        print("Bad argument given")
+        error("Bad argument given")
         return false
     end
 
@@ -351,13 +359,13 @@ end
 local function tree_add_node(root, node_name)
 
     if not root or type(root) ~= "table" then
-        print("Bad root object: " .. tostring(root))
+        error("Bad root object: " .. tostring(root))
         return false
     end
 
     local idx_tbl_size = get_table_size(root.idx_tbl)
     if  not idx_tbl_size or root_tbl_size == 0 then
-        print("Bad " .. root.path .. " index table size, idx_tbl_size: " .. tostring(idx_tbl_size))
+        error("Bad " .. root.path .. " index table size, idx_tbl_size: " .. tostring(idx_tbl_size))
         return false
     end
 
@@ -372,7 +380,7 @@ local function tree_add_node(root, node_name)
             node.last = root.last
 
             -- Prepare specific mmx out string for the last object
-            if node.name == node.last then
+            if node.name == node.last and node.idx_tbl then
                 local tmp = {}
                 local res = ""
                 for cnt,idx in pairs(node.idx_tbl) do
@@ -398,6 +406,7 @@ local function tree_add_node(root, node_name)
     --tree_add_node
 end
 
+
 --[[
     @brief  Specific depth-first search for searching
             mmx string for the last object and wtrite
@@ -407,7 +416,7 @@ end
     @param  path Path to file.
 --]]
 local function dfs(root, path)
-    if root then
+    if root and root.idx_tbl then
         for count, idx in pairs(root.idx_tbl) do
             dfs(root.k[idx], path)
             if root.name == root.last and not root.visited then
@@ -436,13 +445,13 @@ local function get_mmx_out(path)
 
     dm_table = get_dm_table(path)
     if not dm_table then
-        print("Failed to get Data Model table")
+        error("Failed to get Data Model table")
         return false
     end
 
     dm_size = get_table_size(dm_table)
     if not dm_size or dm_size == 0 then
-        print("Failed to get Data Model table size")
+        error("Failed to get Data Model table size")
         return false
     end
 
@@ -457,6 +466,12 @@ local function get_mmx_out(path)
     end
 
     dfs(root, mmx_out_file)
+
+    read_result = read_mmx_out(mmx_out_file)
+    if not read_result then
+        error("Failed to read " .. mmx_out_file)
+        return false
+    end
 
     local mmx = tostring(ing.ResCode.SUCCESS) .. ";" .. read_mmx_out(mmx_out_file)
     os.remove(mmx_out_file)
