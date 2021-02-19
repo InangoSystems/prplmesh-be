@@ -69,6 +69,56 @@
 ################################################################################
 --]]
 
+require("prplmesh-be-utils")
 require("mmx/ing_utils")
 
-ing.utils.exit(ing.ResCode.WRONG_USAGE)
+
+--[[
+    @brief  Function adds new instance to the Data Model represented by UBus.
+
+    @param  path String contains path to the object in Data Model.
+
+    @return MMX Style string for add object otherwise false.
+--]]
+local function add_object(path)
+
+    local result = call_ubus(path, "add", {})
+    if not result then
+        error("Failed to add: " .. tostring(path))
+        return false
+    end
+
+    local idx = 0
+    for k,v in pairs(result) do
+        if k == "index" then
+            idx = v
+            break
+        end
+    end
+
+    return tostring(ing.ResCode.SUCCESS) .. ";" .. tostring(ing.StatCode.OK) .. ";" .. tostring(idx) ..";"
+--add_object()
+end
+
+
+function main(args)
+
+    local ret = tostring(ing.ResCode.FAIL) .. ";" .. tostring(ing.StatCode.OK) .. ";"
+
+    if not args[1] then
+        error("Bad argument given: " .. tostring(args[1]))
+        return ret
+    end
+
+    local mmx = add_object(args[1])
+
+    if not mmx then
+        error("Failed to add object.")
+        return ret
+    end
+
+    print(mmx)
+--main()
+end
+
+main(arg)
