@@ -1,3 +1,5 @@
+#!/usr/bin/lua
+--[[
 ################################################################################
 #
 # Copyright (c) 2013-2021 Inango Systems LTD.
@@ -65,22 +67,8 @@
 # - professional sub-contract and customization services
 #
 ################################################################################
-ifeq ($(PREFIX),)
-    PREFIX := /usr
-endif
+--]]
 
-all:
-	echo "Nothing to compile"
+require("mmx/ing_utils")
 
-install:
-	install -d $(DESTDIR)$(PREFIX)/lib/lua
-	install -m 755 prplmesh-be-utils.lua $(DESTDIR)$(PREFIX)/lib/lua
-
-	install -d $(DESTDIR)$(PREFIX)/bin/mmx_be
-	install -m 755 *get*.lua $(DESTDIR)$(PREFIX)/bin/mmx_be
-	install -m 755 *set*.lua $(DESTDIR)$(PREFIX)/bin/mmx_be
-	install -m 755 *add*.lua $(DESTDIR)$(PREFIX)/bin/mmx_be
-	install -m 755 *del*.lua $(DESTDIR)$(PREFIX)/bin/mmx_be
-
-clean:
-	echo "Nothing to clean"
+ing.utils.exit(ing.ResCode.WRONG_USAGE)
