@@ -1,3 +1,5 @@
+#!/usr/bin/lua
+--[[
 ################################################################################
 #
 # Copyright (c) 2013-2021 Inango Systems LTD.
@@ -65,20 +67,35 @@
 # - professional sub-contract and customization services
 #
 ################################################################################
-ifeq ($(PREFIX),)
-    PREFIX := /usr
-endif
+--]]
 
-all:
-	echo "Nothing to compile"
+require("ubus")
 
-install:
-	install -d $(DESTDIR)$(PREFIX)/lib/lua
-	install -m 755 prplmesh-be-utils.lua $(DESTDIR)$(PREFIX)/lib/lua
+--[[ -------------------------------------------------------
+Unified function for create connection to ubus, call ubus with passed parameters and close connection.
+-- --------------------------------------------------------]]
+function call_ubus(object, method, data)
+    local _ubus_connection
+    local res
+    _ubus_connection = ubus.connect()
 
-	install -d $(DESTDIR)$(PREFIX)/bin/mmx_be
-	install -m 755 *get*.lua $(DESTDIR)$(PREFIX)/bin/mmx_be
-	install -m 755 *set*.lua $(DESTDIR)$(PREFIX)/bin/mmx_be
+    if object and method then
+        if type(data) ~= "table" then
+            data = { }
+        end
+        res = _ubus_connection:call(object, method, data)
+    elseif object then
+        res = _ubus_connection:signatures(object)
+    else
+        res = _ubus_connection:objects()
+    end
+    _ubus_connection:close()
+    return res
+end
 
-clean:
-	echo "Nothing to clean"
+--[[
+    @brief Write errors to stderr
+--]]
+function error(message)
+    io.stderr:write("[ERROR] " .. message .. "\n")
+end
