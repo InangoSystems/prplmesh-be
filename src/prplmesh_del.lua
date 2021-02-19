@@ -69,6 +69,50 @@
 ################################################################################
 --]]
 
+require("prplmesh-be-utils")
 require("mmx/ing_utils")
 
-ing.utils.exit(ing.ResCode.WRONG_USAGE)
+
+--[[
+    @brief  Function removes instance to the Data Model represented by UBus.
+
+    @param  path String contains path to the object in Data Model.
+
+    @return MMX Style string for del object otherwise false.
+--]]
+local function del_object(path)
+
+    local result = call_ubus(path, "del", {})
+    if not result then
+        error("Failed to add: " .. tostring(path))
+        return false
+    end
+
+    local idx = string.match(string.sub(path, -1),"[1-9]")
+
+    return tostring(ret) .. ";" .. tostring(ing.StatCode.OK) .. ";" .. tostring(idx) ..";"
+--add_object()
+end
+
+
+function main(args)
+
+    local ret = tostring(ing.ResCode.FAIL) .. ";" .. tostring(ing.StatCode.OK) .. ";"
+
+    if not args[1] then
+        error("Bad argument given: " .. tostring(args[1]))
+        return ret
+    end
+
+    local mmx = del_object(args[1])
+
+    if not mmx then
+        error("Failed to delete object.")
+        return ret
+    end
+
+    print(mmx)
+--main()
+end
+
+main(arg)
