@@ -69,33 +69,17 @@
 ################################################################################
 --]]
 require("mmx/ing_utils")
-require("ubus")
+require("prplmesh-be-utils")
 
---[[ -------------------------------------------------------
-Unified function for create connection to ubus, call ubus with passed parameters and close connection.
--- --------------------------------------------------------]]
-function call_ubus(object, method, data)
-    local _ubus_connection
-    local res
-    _ubus_connection = ubus.connect()
-
-    if object and method then
-        if type(data) ~= "table" then
-            data = { }
-        end
-        res = _ubus_connection:call(object, method, data)
-    elseif object then
-        res = _ubus_connection:signatures(object)
-    else
-        res = _ubus_connection:objects()
-    end
-    _ubus_connection:close()
-    return res
+--[[
+     Scrit accept Ambiorix object name without placeholders as 1st cmdline arg 
+--]]
+d = call_ubus(arg[1], "get")
+if not d then
+    error("Did not get object from U-Bus")
+    ing.utils.exit(ing.ResCode.FAIL)
 end
-
--- use Ambiorix object names in the script cmdline at MMX model
-d = call_ubus(arg[2], "get")
-_, d = next(d) -- go one level deeper to get object params
+_, d = next(d) -- go one level deeper to reach object params
 
 res = {}
 for k, v in pairs(d) do
