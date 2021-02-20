@@ -1,3 +1,5 @@
+#!/usr/bin/lua
+--[[
 ################################################################################
 #
 # Copyright (c) 2013-2021 Inango Systems LTD.
@@ -65,22 +67,52 @@
 # - professional sub-contract and customization services
 #
 ################################################################################
-ifeq ($(PREFIX),)
-    PREFIX := /usr
-endif
+--]]
 
-all:
-	echo "Nothing to compile"
+require("prplmesh-be-utils")
+require("mmx/ing_utils")
 
-install:
-	install -d $(DESTDIR)$(PREFIX)/lib/lua
-	install -m 755 prplmesh-be-utils.lua $(DESTDIR)$(PREFIX)/lib/lua
 
-	install -d $(DESTDIR)$(PREFIX)/bin/mmx_be
-	install -m 755 *get*.lua $(DESTDIR)$(PREFIX)/bin/mmx_be
-	install -m 755 *set*.lua $(DESTDIR)$(PREFIX)/bin/mmx_be
-	install -m 755 *add*.lua $(DESTDIR)$(PREFIX)/bin/mmx_be
-	install -m 755 *del*.lua $(DESTDIR)$(PREFIX)/bin/mmx_be
+--[[
+    @brief  Function removes instance to the Data Model represented by UBus.
 
-clean:
-	echo "Nothing to clean"
+    @param  path String contains path to the object in Data Model.
+
+    @return MMX Style string for del object otherwise false.
+--]]
+local function del_object(path)
+
+    local result = call_ubus(path, "del", {})
+    if not result then
+        error("Failed to add: " .. tostring(path))
+        return false
+    end
+
+    local idx = string.match(string.sub(path, -1),"[1-9]")
+
+    return tostring(ret) .. ";" .. tostring(ing.StatCode.OK) .. ";" .. tostring(idx) ..";"
+--add_object()
+end
+
+
+function main(args)
+
+    local ret = tostring(ing.ResCode.FAIL) .. ";" .. tostring(ing.StatCode.OK) .. ";"
+
+    if not args[1] then
+        error("Bad argument given: " .. tostring(args[1]))
+        return ret
+    end
+
+    local mmx = del_object(args[1])
+
+    if not mmx then
+        error("Failed to delete object.")
+        return ret
+    end
+
+    print(mmx)
+--main()
+end
+
+main(arg)
