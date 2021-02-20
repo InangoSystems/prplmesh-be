@@ -68,4 +68,357 @@
 #
 ################################################################################
 --]]
-print("0; 1;")
+require("mmx/ing_utils")
+require("ubus")
+
+-- Global variable for saving mmx string
+mmx_out_str = ""
+
+--[[
+    @brief Write errors to stderr
+--]]
+local function error(message)
+    io.stderr:write("[ERROR] " .. message .. "\n")
+end
+
+
+--[[
+    @brief  Function for getting indexes from UBus via list
+            function provided by Ambiorix library.
+
+    @param  path String contains to object in Data Model.
+            Example: Controller.Network.Device.{i}
+
+    @return  Table which contains list of indexes for path otherwise false.
+--]]
+local function get_indexes(path)
+
+    local _ubus_connection
+    local devices
+    local instances
+    local result = {}
+
+    _ubus_connection = ubus.connect()
+    if not _ubus_connection then
+        error("Ubus sock conn fail")
+        return false
+    end
+
+    if not path then
+        error("Bad path: " .. tostring(path))
+        return false
+    end
+
+    -- Retrieve output from list method via path from UBus
+    instance = _ubus_connection:call(path, "list", { })
+    if not instance then
+        error(path .. " not found in UBus")
+        _ubus_connection:close()
+        return false
+    end
+
+    if not instance then
+        error("Failed to get intance table from UBus, path: " .. tostring(path))
+        return false
+    end
+
+    -- Fill up path instance indexes in table.
+    for k, v in pairs(instance["instances"]) do
+        result[k] = v["index"]
+    end
+
+    _ubus_connection:close()
+
+    return result
+--get_indexes()
+end
+
+
+--[[
+    @brief  Function splits object path string into list of root and sub-objects.
+            Example: Controller.Network.Device.{i}.Radio.{i}
+                     Will be converted in table:
+                        Controller.Network.Device
+                        Radio
+
+    @param  path String contains to object in Data Model.
+            Example: Controller.Network.Device.{i}.Radio.{i}
+
+    @return Table which contains list of required arguments otherwise false.
+--]]
+local function get_dm_table(path)
+
+    if not path then
+        error("Bad path.")
+        return false
+    end
+
+    local parsed_args = {}
+
+    for match in string.gmatch(path, "(.-)[.]{i}[.]?") do
+        table.insert(parsed_args, match);
+    end
+
+    return parsed_args
+--get_dm_table
+end
+
+
+--[[
+    @brief Calculate table size.
+
+    @param data Table with data.
+    @return Table size otherwise false.
+--]]
+local function get_table_size(data)
+
+    if not data or tostring(type(data)) ~= "table" then
+        error("Bad data: " .. tostring(data))
+        return false
+    end
+
+    local size = 0;
+
+    for _ in pairs(data) do
+        size = size + 1
+    end
+
+    return size
+--get_table_size()
+end
+
+
+--[[
+    @brief  Calculate path to object.
+            Example: Controller.Network.Device.1.Radio
+
+    @param  root_path String with root object path.
+            Example: Controller.Network.Device
+
+    @param  obj_path String with path to object.
+            Example: Radio
+
+    @param  idx Integer index
+
+    @return Path to object (ex: Controller.Network.Device.1.Radio)
+            otherwise false.
+--]]
+local function get_obj_path(root_path, obj_path, idx)
+
+    if ((type(root_path)~= "string" or type(obj_path)) ~= "string") then
+        error "Bad arguments given"
+        return false
+    end
+
+    if (type(idx) ~= "number") or idx <= 0 then
+        error("Bad index, idx: " .. tostring(idx))
+        return false
+    end
+    local out
+
+    out = root_path .. "." .. tostring(idx) .. "." .. obj_path
+
+    return out
+--get_obj_path()
+end
+
+
+--[[
+    @brief  Create specific B-tree root object..
+
+    @param  root_path String with path to root object.
+    @param  last Name of the last object for processing.
+    @param  path Path to file for saving results.
+    @return Table for root object otherwise false.
+--]]
+local function tree_create(root_path, last)
+
+    if type(root_path) ~= "string" then
+        error("Bad argument given")
+        return false
+    end
+
+    root = {
+        name = root_path,
+        path = root_path,
+        idx_tbl,
+        mmx_out,
+        visited = false,
+        last,
+        k = {}
+    }
+
+    root.idx_tbl = get_indexes(root_path)
+    if not root.idx_tbl then
+        error("Root index table empty.")
+        return false
+    end
+
+    local tmp = ""
+    if root.name == last then
+        for count, idx in pairs(root.idx_tbl) do
+            tmp = tostring(idx) .. ";"
+            mmx_out_str = tostring(mmx_out_str) .. tostring(tmp)
+        end
+    end
+
+    root.mmx_out = tmp
+    return root
+--create_tree()
+end
+
+
+--[[
+    @brief  Create empty node for specific B-tree.
+
+    @return Table for empty node.
+--]]
+local function node_create_empty()
+    local node = {
+        id,
+        name,
+        path,
+        idx_tbl,
+        mmx_out,
+        visited = false,
+        last,
+        k = {}
+    }
+    return node
+end
+
+
+--[[
+    @brief  Add node to specific B-tree.
+
+    @param  root String with path to root object.
+    @param  node_name Name of the next object for processing.
+    @return True on success otherwise false.
+--]]
+local function tree_add_node(root, node_name)
+
+    if not root or type(root) ~= "table" then
+        error("Bad root object: " .. tostring(root))
+        return false
+    end
+
+    local idx_tbl_size = get_table_size(root.idx_tbl)
+    if  not idx_tbl_size or root_tbl_size == 0 then
+        error("Bad " .. tostring(root.path) .. " index table size, idx_tbl_size: " .. tostring(idx_tbl_size))
+        return false
+    end
+
+    -- Recursively add node to the k table
+    for count, idx in pairs(root.idx_tbl) do
+        if not root.k[count] then
+            local node = node_create_empty()
+            node.name = node_name
+            node.path = get_obj_path(root.path, node_name, root.idx_tbl[count])
+            node.idx_tbl = get_indexes(node.path)
+            node.mmx_out = root.mmx_out .. tostring(idx) .. ","
+            node.last = root.last
+
+            -- Prepare specific mmx out string for the last object
+            if node.name == node.last and node.idx_tbl then
+                local tmp = {}
+                local res = ""
+                for cnt,idx in pairs(node.idx_tbl) do
+                    tmp[cnt] = node.mmx_out .. tostring(idx) .. ";"
+                end
+                for cnt,val in pairs(tmp) do
+                    res = tostring(res) .. val
+                end
+                node.mmx_out = res
+            end
+
+            root.k[count] = node
+        end
+
+        k_size = get_table_size(root.k)
+        -- If current k table full - create new k table on the next level
+        if idx_tbl_size == k_size and root.k[count].name ~= node_name then
+            tree_add_node(root.k[count], node_name)
+        end
+    end
+
+    return true
+    --tree_add_node
+end
+
+
+--[[
+    @brief  Specific depth-first search for searching
+            mmx string for the last object and wtrite
+            it to file.
+
+    @param  root String with path to root object.
+    @param  path Path to file.
+--]]
+local function dfs(root)
+    if root and root.idx_tbl then
+        for count, idx in pairs(root.idx_tbl) do
+            dfs(root.k[idx], path)
+            if root.name == root.last and not root.visited then
+                root.visited = true
+                mmx_out_str = tostring(mmx_out_str) .. tostring(root.mmx_out)
+            end
+        end
+    end
+end
+
+
+--[[
+    @brief  Get mmx string for given path.
+
+    @param  path String with raw path to last object.
+    @return  mmx style string for last object otherwise false.
+--]]
+local function get_mmx_out(path)
+
+    local dm_table = {}
+    local dm_size = 0
+
+    dm_table = get_dm_table(path)
+    if not dm_table then
+        error("Failed to get Data Model table")
+        return false
+    end
+
+    dm_size = get_table_size(dm_table)
+    if not dm_size or dm_size == 0 then
+        error("Failed to get Data Model table size")
+        return false
+    end
+
+    local root
+    for idx_tbl in pairs(dm_table) do
+        if idx_tbl == 1 then
+            root = tree_create(dm_table[idx_tbl], dm_table[dm_size])
+        else
+            root.last = dm_table[dm_size]
+            tree_add_node(root, dm_table[idx_tbl])
+        end
+    end
+
+    dfs(root)
+
+   local mmx = tostring(ing.ResCode.SUCCESS) .. ";" .. mmx_out_str
+
+    return mmx
+--get_mmx_out
+end
+
+
+function main(args)
+
+    if args[1] then
+        mmx_string = get_mmx_out(args[1])
+        if not mmx_string then
+            return ing.ResCode.FAIL
+        else
+            print(mmx_string)
+        end
+    end
+end
+
+main(arg)
