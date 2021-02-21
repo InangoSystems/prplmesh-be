@@ -68,6 +68,134 @@
 #
 ################################################################################
 --]]
-require("mmx/ing_utils")
 
-ing.utils.exit(ing.ResCode.WRONG_USAGE)
+require("mmx/ing_utils")
+require("prplmesh-be-utils")
+
+
+--[[
+    @brief  Function for converting CMD arguments to key-value table.
+
+    @param  args Command Line arguments.
+            Example: Controller.Network.AccessPoint 1 -pname SSID -pvalue WiFi
+
+    @return Table which contains list of parameters and values otherwise false.
+--]]
+local function parse_args(args)
+    local ap_param_tbl = {}
+    local param_idx = 2
+
+    local empty_param = false
+    while param_idx <= #args do
+        empty_param = false
+        if args[param_idx] == "-pname" and args[param_idx+2] == "-pvalue" then
+
+            if args[param_idx + 1] and args[param_idx + 3] ~= "-pname" then
+                ap_param_tbl[ args[param_idx + 1] ] = args[param_idx + 3]
+            else
+                empty_param = true
+                ap_param_tbl[ args[param_idx + 1] ] = ""
+            end
+
+            if args[param_idx + 3] == nil then
+                break
+            end
+
+            param_idx = param_idx + (empty_param and 3 or 4)
+        else
+            error("Invalid arguments")
+            return false
+        end
+    end
+
+    return ap_param_tbl
+--parse_args()
+end
+
+
+--[[
+    @brief  Function for getting indexes from UBus via list
+            function provided by Ambiorix library.
+
+    @param  path String contains path to object in Data Model.
+            Example: Controller.Network.AccessPoint.1
+    @param  ap_params Table which contains list of parameters and value.
+
+    @return True on success otherwise false.
+--]]
+local function set_data(path, ap_params)
+
+    if not path or not ap_params then
+        error("Bad path or ap_params.")
+        return false
+    end
+
+    local data = {parameters = ap_params}
+
+    local ret = call_ubus(path, "set", data)
+    if not ret then
+        error("Failed to set data.")
+        return false
+    end
+
+    return true
+--set_data()
+end
+
+
+--[[
+    @brief  Function for applying AccessPoint parameters.
+
+    @return True on success otherwise false.
+--]]
+local function apply()
+
+    local ret = call_ubus("Controller.Network", "AccessPointCommit", {})
+    if not ret then
+        error("Failed to set data.")
+        return false
+    end
+
+    return true
+--apply()
+end
+
+
+function main(args)
+
+    local ret = tostring(ing.ResCode.FAIL) .. ";" .. tostring(ing.StatCode.OK) .. ";"
+
+    if #args < 2 then
+        error("Wrong arguments: " .. tostring(#args))
+        print(ret)
+        return ret
+    end
+
+    local ap_path = args[1]
+
+    local ap_params = parse_args(args)
+    if not ap_params then
+        error("Failed to parse parameters")
+        print(ret)
+        return ret
+    end
+
+    local success = set_data(ap_path, ap_params)
+    if not success then
+        error("Failed to set data for: " .. tostring(ap_path))
+        print(ret)
+        return ret
+    end
+
+    success = apply()
+    if not success then
+        error("Failed to commit changes for: " .. tostring(ap_path))
+        print(ret)
+        return ret
+    end
+
+    print(tostring(ing.ResCode.SUCCESS) .. ";" .. tostring(ing.StatCode.OK) .. ";")
+--main()
+end
+
+main(arg)
