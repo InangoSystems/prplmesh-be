@@ -90,7 +90,7 @@ local function del_object(path)
 
     local idx = string.match(string.sub(path, -1),"[1-9]")
 
-    return tostring(ret) .. ";" .. tostring(ing.StatCode.OK) .. ";" .. tostring(idx) ..";"
+    return tostring(ing.ResCode.SUCCESS) .. ";" .. tostring(ing.StatCode.OK) .. ";"
 --add_object()
 end
 
@@ -101,6 +101,7 @@ function main(args)
 
     if not args[1] then
         error("Bad argument given: " .. tostring(args[1]))
+        print(ret)
         return ret
     end
 
@@ -108,6 +109,7 @@ function main(args)
 
     if not mmx then
         error("Failed to delete object.")
+        print(ret)
         return ret
     end
 
