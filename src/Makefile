@@ -69,12 +69,14 @@ ifeq ($(PREFIX),)
     PREFIX := /usr
 endif
 
+override LUAPATH ?= $(PREFIX)/lib/lua
+
 all:
 	echo "Nothing to compile"
 
 install:
-	install -d $(DESTDIR)$(PREFIX)/lib/lua
-	install -m 755 prplmesh-be-utils.lua $(DESTDIR)$(PREFIX)/lib/lua
+	install -d $(DESTDIR)$(LUAPATH)
+	install -m 755 prplmesh-be-utils.lua $(DESTDIR)$(LUAPATH)
 
 	install -d $(DESTDIR)$(PREFIX)/bin/mmx_be
 	install -m 755 *get*.lua $(DESTDIR)$(PREFIX)/bin/mmx_be
