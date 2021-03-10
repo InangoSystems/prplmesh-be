@@ -152,7 +152,7 @@ local function apply()
 
     local ret = call_ubus("Controller.Network", "AccessPointCommit", {})
     if not ret then
-        error("Failed to set data.")
+        error("Failed to apply data.")
         return false
     end
 
