@@ -101,6 +101,7 @@ function main(args)
 
     if not args[1] then
         error("Bad argument given: " .. tostring(args[1]))
+        print(ret)
         return ret
     end
 
@@ -108,7 +109,12 @@ function main(args)
 
     if not mmx then
         error("Failed to delete object.")
+        print(ret)
         return ret
+    end
+
+    if string.match( args[1], "AccessPoint" ) then
+        call_ubus("Controller.Network", "AccessPointCommit", {})
     end
 
     print(mmx)
