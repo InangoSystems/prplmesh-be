@@ -113,6 +113,10 @@ function main(args)
         return ret
     end
 
+    if string.match( args[1], "AccessPoint" ) then
+        call_ubus("Controller.Network", "AccessPointCommit", {})
+    end
+
     print(mmx)
 --main()
 end
