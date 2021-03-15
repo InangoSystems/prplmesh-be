@@ -264,7 +264,7 @@ local function tree_create(root_path, last)
 
     root.mmx_out = tmp
     return root
---create_tree()
+--tree_create()
 end
 
 
@@ -342,7 +342,7 @@ local function tree_add_node(root, node_name)
     end
 
     return true
-    --tree_add_node
+--tree_add_node()
 end
 
 
@@ -356,16 +356,16 @@ end
 --]]
 local function dfs(root)
     if root and root.idx_tbl then
-        for count, idx in pairs(root.idx_tbl) do
-            dfs(root.k[idx], path)
-            if root.name == root.last and not root.visited then
-                root.visited = true
-                mmx_out_str = tostring(mmx_out_str) .. tostring(root.mmx_out)
+        if root.name == root.last and not root.visited then
+            root.visited = true
+            mmx_out_str = tostring(mmx_out_str) .. tostring(root.mmx_out)
+        else
+            for count, sub_obj in pairs(root.k) do
+                dfs(sub_obj)
             end
         end
     end
 end
-
 
 --[[
     @brief  Get mmx string for given path.
@@ -402,10 +402,15 @@ local function get_mmx_out(path)
 
     dfs(root)
 
-   local mmx = tostring(ing.ResCode.SUCCESS) .. ";" .. mmx_out_str
+    if string.len(mmx_out_str) == 0 then
+        error("Empty output string.")
+        return false
+    end
+
+    local mmx = tostring(ing.ResCode.SUCCESS) .. ";" .. mmx_out_str
 
     return mmx
---get_mmx_out
+--get_mmx_out()
 end
 
 
@@ -414,6 +419,8 @@ function main(args)
     if args[1] then
         mmx_string = get_mmx_out(args[1])
         if not mmx_string then
+            error("Failed to get indexes for: " .. tostring(args[1]))
+            print(ing.ResCode.FAIL)
             return ing.ResCode.FAIL
         else
             print(mmx_string)
