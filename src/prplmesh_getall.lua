@@ -402,11 +402,6 @@ local function get_mmx_out(path)
 
     dfs(root)
 
-    if string.len(mmx_out_str) == 0 then
-        error("Empty output string.")
-        return false
-    end
-
     local mmx = tostring(ing.ResCode.SUCCESS) .. ";" .. mmx_out_str
 
     return mmx
