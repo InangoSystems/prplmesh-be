@@ -1,9 +1,10 @@
+#!/bin/sh
 ################################################################################
 #
 # Copyright (c) 2013-2021 Inango Systems LTD.
 #
 # Author: Inango Systems LTD. <support@inango-systems.com>
-# Creation Date: 20 Jan 2021
+# Creation Date: 10 May 2021
 #
 # The author may be reached at support@inango-systems.com
 #
@@ -65,25 +66,21 @@
 # - professional sub-contract and customization services
 #
 ################################################################################
-ifeq ($(strip $(PREFIX)),)
-    PREFIX := /usr
-endif
 
-LUAPATH ?= $(PREFIX)/lib/lua
+NAME=mmx_model_updater
+UPDATE_TIMEOUT=5
+RESET_UPDATE_TIMEOUT=60
+LOCK=/var/log/$NAME.lock
 
-all:
-	echo "Nothing to compile"
+main() {
+    while true; do 
+        for n in $(seq $(($RESET_UPDATE_TIMEOUT/$UPDATE_TIMEOUT))); do
+            flock -n $LOCK /bin/sh /usr/bin/mmx_be/model_changes_update.sh
+            sleep $UPDATE_TIMEOUT
+        done
+        # reset state of updater for force update whole model
+        > /tmp/mmx_cur_model
+    done
+}
 
-install:
-	install -d $(DESTDIR)$(LUAPATH)
-	install -m 755 prplmesh-be-utils.lua $(DESTDIR)$(LUAPATH)
-
-	install -d $(DESTDIR)$(PREFIX)/bin/mmx_be
-	install -m 755 *get*.lua $(DESTDIR)$(PREFIX)/bin/mmx_be
-	install -m 755 *set*.lua $(DESTDIR)$(PREFIX)/bin/mmx_be
-	install -m 755 *add*.lua $(DESTDIR)$(PREFIX)/bin/mmx_be
-	install -m 755 *del*.lua $(DESTDIR)$(PREFIX)/bin/mmx_be
-	install -m 755 *model_changes_update*.sh $(DESTDIR)$(PREFIX)/bin/mmx_be
-
-clean:
-	echo "Nothing to clean"
+main "$@"

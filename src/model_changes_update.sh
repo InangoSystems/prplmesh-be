@@ -1,9 +1,10 @@
+#!/bin/sh
 ################################################################################
 #
 # Copyright (c) 2013-2021 Inango Systems LTD.
 #
 # Author: Inango Systems LTD. <support@inango-systems.com>
-# Creation Date: 20 Jan 2021
+# Creation Date: 10 May 2021
 #
 # The author may be reached at support@inango-systems.com
 #
@@ -65,25 +66,58 @@
 # - professional sub-contract and customization services
 #
 ################################################################################
-ifeq ($(strip $(PREFIX)),)
-    PREFIX := /usr
-endif
 
-LUAPATH ?= $(PREFIX)/lib/lua
+NAME=mmx_model_updater
 
-all:
-	echo "Nothing to compile"
+function find_changed_objects() {
+    # $1 - "ubus list" output with prev model file
+    # $2 - current_model
+    # $3 - to update
 
-install:
-	install -d $(DESTDIR)$(LUAPATH)
-	install -m 755 prplmesh-be-utils.lua $(DESTDIR)$(LUAPATH)
+    prev_model=$1; shift;
+    current_model=$1; shift;
+    to_update=$1; shift
 
-	install -d $(DESTDIR)$(PREFIX)/bin/mmx_be
-	install -m 755 *get*.lua $(DESTDIR)$(PREFIX)/bin/mmx_be
-	install -m 755 *set*.lua $(DESTDIR)$(PREFIX)/bin/mmx_be
-	install -m 755 *add*.lua $(DESTDIR)$(PREFIX)/bin/mmx_be
-	install -m 755 *del*.lua $(DESTDIR)$(PREFIX)/bin/mmx_be
-	install -m 755 *model_changes_update*.sh $(DESTDIR)$(PREFIX)/bin/mmx_be
+    for r in $(sed -e 's/\.\d\+\./.[[:digit:]]\\+./g' -e 's/\d\+$/[[:digit:]]\\+/' "$current_model" | sort -u | grep ':digit:'); do
+        #echo $r;
 
-clean:
-	echo "Nothing to clean"
+        cur_state=$(grep -x $r "$current_model" | md5sum -);
+        prev_state=$(grep -x $r "$prev_model" | md5sum -);
+
+        # analyze non-scalar and scalar objects but add to update only non-scalar because scalar objects defined as augment usually
+        if [ "$cur_state" != "$prev_state" ]; then
+            grep -m 1 -x $r "$current_model" | grep '\d$' | sed -e 's/\.\d\+\./.{i}./g' -e 's/.\d\+$/.{i}./' >> "$to_update"
+        fi
+    done
+}
+
+update_cycle() {
+    logger -t "$NAME" -p daemon.info "MMX model update cycle"
+
+    prev_model=/tmp/mmx_prev_model
+    current_model=/tmp/mmx_cur_model
+    to_update=/tmp/mmx_to_ntf
+
+    > "$to_update"
+
+    [ -f "$current_model" ] || touch "$current_model"
+    mv "$current_model" "$prev_model"
+
+    ubus list | grep Controller | sort > "$current_model"
+
+    find_changed_objects "$prev_model"    "$current_model" "$to_update"
+    find_changed_objects "$current_model" "$prev_model"    "$to_update"
+    
+    if [ "$(cat $to_update | wc -l)" != "0" ]; then
+        logger -t "$NAME" -p daemon.info "MMX model objects for updating"
+        cat "$to_update" | sort -u | xargs logger -t "$NAME" -p daemon.info
+
+        cat "$to_update" | sort -u | sed 's/^[[:space:]]*/Device./' | xargs -n 1 ntfrsend -i 203 -m 120 -l 3 -p
+    fi
+}
+
+main() {
+    update_cycle
+}
+
+main "$@"
