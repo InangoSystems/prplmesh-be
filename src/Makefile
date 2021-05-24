@@ -83,7 +83,7 @@ install:
 	install -m 755 *set*.lua $(DESTDIR)$(PREFIX)/bin/mmx_be
 	install -m 755 *add*.lua $(DESTDIR)$(PREFIX)/bin/mmx_be
 	install -m 755 *del*.lua $(DESTDIR)$(PREFIX)/bin/mmx_be
-	install -m 755 *model_changes_update*.sh $(DESTDIR)$(PREFIX)/bin/mmx_be
+	install -m 755 *model_update*.sh $(DESTDIR)$(PREFIX)/bin/mmx_be
 
 clean:
 	echo "Nothing to clean"

@@ -69,55 +69,63 @@
 
 NAME=mmx_model_updater
 
-function find_changed_objects() {
-    # $1 - "ubus list" output with prev model file
-    # $2 - current_model
-    # $3 - to update
-
-    prev_model=$1; shift;
-    current_model=$1; shift;
-    to_update=$1; shift
-
-    for r in $(sed -e 's/\.\d\+\./.[[:digit:]]\\+./g' -e 's/\d\+$/[[:digit:]]\\+/' "$current_model" | sort -u | grep ':digit:'); do
-        #echo $r;
-
-        cur_state=$(grep -x $r "$current_model" | md5sum -);
-        prev_state=$(grep -x $r "$prev_model" | md5sum -);
-
-        # analyze non-scalar and scalar objects but add to update only non-scalar because scalar objects defined as augment usually
-        if [ "$cur_state" != "$prev_state" ]; then
-            grep -m 1 -x $r "$current_model" | grep '\d$' | sed -e 's/\.\d\+\./.{i}./g' -e 's/.\d\+$/.{i}./' >> "$to_update"
-        fi
-    done
+main() {
+    update_cycle "$@"
 }
 
-update_cycle() {
-    logger -t "$NAME" -p daemon.info "MMX model update cycle"
 
+update_cycle() {
+    logger -t "$NAME" -p daemon.debug "prplMesh MMX model update cycle"
+
+    current_model_file=$1; shift;
     prev_model=/tmp/mmx_prev_model
-    current_model=/tmp/mmx_cur_model
     to_update=/tmp/mmx_to_ntf
 
     > "$to_update"
 
-    [ -f "$current_model" ] || touch "$current_model"
-    mv "$current_model" "$prev_model"
+    [ -f "$current_model_file" ] || touch "$current_model_file"
+    mv "$current_model_file" "$prev_model"
 
-    ubus list | grep Controller | sort > "$current_model"
+    get_ambiorix_model | sort > "$current_model_file"
 
-    find_changed_objects "$prev_model"    "$current_model" "$to_update"
-    find_changed_objects "$current_model" "$prev_model"    "$to_update"
+    find_changed_objects "$prev_model"         "$current_model_file" "$to_update"
+    find_changed_objects "$current_model_file" "$prev_model"         "$to_update"
     
     if [ "$(cat $to_update | wc -l)" != "0" ]; then
-        logger -t "$NAME" -p daemon.info "MMX model objects for updating"
-        cat "$to_update" | sort -u | xargs logger -t "$NAME" -p daemon.info
-
-        cat "$to_update" | sort -u | sed 's/^[[:space:]]*/Device./' | xargs -n 1 ntfrsend -i 203 -m 120 -l 3 -p
+        cat "$to_update" | sort -u | ambiorix_to_mmx_object_name | xargs -n 1 ntfrsend -i 203 -m 120 -l 3 -p
     fi
 }
 
-main() {
-    update_cycle
+get_ambiorix_model() {
+    # Print current Ambiorix model
+    ubus list | grep Controller
+}
+
+find_changed_objects() {
+    # $1 - path to file with "ubus list" output of prev model state
+    # $2 - path to file with "ubus list" output of current model state
+    # $3 - path to file for write list of changed MMX model object names into
+    # Write into "$3" the MMX objects changed/appeard/disappeared in comparison to prev model
+
+    current_model_file=$1; shift;
+    prev_model=$1; shift;
+    to_update=$1; shift
+
+    for obj_name_regex in $(sed -e 's/\.\d\+\./.[[:digit:]]\\+./g' -e 's/\d\+$/[[:digit:]]\\+/' "$current_model_file" | sort -u | grep ':digit:'); do
+        cur_state=$(grep -x $obj_name_regex "$current_model_file" | md5sum -);
+        prev_state=$(grep -x $obj_name_regex "$prev_model" | md5sum -);
+
+        # analyze non-scalar and scalar objects but add to update only non-scalar because scalar objects defined as augment usually
+        if [ "$cur_state" != "$prev_state" ]; then
+            grep -m 1 -x $obj_name_regex "$current_model_file" | grep '\d$' | sed -e 's/\.\d\+\./.{i}./g' -e 's/.\d\+$/.{i}./' >> "$to_update"
+        fi
+    done
+}
+
+ambiorix_to_mmx_object_name() {
+    # :param $1: name of object from prplMesh data model
+    # :return: corresponding MMX object name
+    sed 's/^[[:space:]]*/Device./' -
 }
 
 main "$@"

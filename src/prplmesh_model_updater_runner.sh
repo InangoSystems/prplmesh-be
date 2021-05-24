@@ -67,19 +67,24 @@
 #
 ################################################################################
 
-NAME=mmx_model_updater
-UPDATE_TIMEOUT=5
-RESET_UPDATE_TIMEOUT=60
-LOCK=/var/log/$NAME.lock
+NAME=prplmesh_model_updater
+INCREMENT_UPDATE_TIMEOUT=5
+# timeout to force update whole model
+FULL_UPDATE_TIMEOUT=$((5*60))
+
+CURRENT_MODEL_FILE=/tmp/mmx_cur_model
+
+# we need lock file to avoid racings between run update script by init script
+# and by user from shell
+LOCK=/var/lock/$NAME.lock
 
 main() {
-    while true; do 
-        for n in $(seq $(($RESET_UPDATE_TIMEOUT/$UPDATE_TIMEOUT))); do
-            flock -n $LOCK /bin/sh /usr/bin/mmx_be/model_changes_update.sh
-            sleep $UPDATE_TIMEOUT
+    while true; do
+        for n in $(seq $(($FULL_UPDATE_TIMEOUT/$INCREMENT_UPDATE_TIMEOUT))); do
+            flock -n $LOCK /bin/sh /usr/bin/mmx_be/$NAME.sh "$CURRENT_MODEL_FILE"
+            sleep $INCREMENT_UPDATE_TIMEOUT
         done
-        # reset state of updater for force update whole model
-        > /tmp/mmx_cur_model
+        > "$CURRENT_MODEL_FILE"
     done
 }
 
