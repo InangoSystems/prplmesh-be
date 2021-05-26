@@ -1,9 +1,10 @@
+#!/bin/sh
 ################################################################################
 #
 # Copyright (c) 2013-2021 Inango Systems LTD.
 #
 # Author: Inango Systems LTD. <support@inango-systems.com>
-# Creation Date: 20 Jan 2021
+# Creation Date: 10 May 2021
 #
 # The author may be reached at support@inango-systems.com
 #
@@ -65,25 +66,66 @@
 # - professional sub-contract and customization services
 #
 ################################################################################
-ifeq ($(strip $(PREFIX)),)
-    PREFIX := /usr
-endif
 
-LUAPATH ?= $(PREFIX)/lib/lua
+NAME=mmx_model_updater
 
-all:
-	echo "Nothing to compile"
+main() {
+    update_cycle "$@"
+}
 
-install:
-	install -d $(DESTDIR)$(LUAPATH)
-	install -m 755 prplmesh-be-utils.lua $(DESTDIR)$(LUAPATH)
 
-	install -d $(DESTDIR)$(PREFIX)/bin/mmx_be
-	install -m 755 *get*.lua $(DESTDIR)$(PREFIX)/bin/mmx_be
-	install -m 755 *set*.lua $(DESTDIR)$(PREFIX)/bin/mmx_be
-	install -m 755 *add*.lua $(DESTDIR)$(PREFIX)/bin/mmx_be
-	install -m 755 *del*.lua $(DESTDIR)$(PREFIX)/bin/mmx_be
-	install -m 755 *model_update*.sh $(DESTDIR)$(PREFIX)/bin/mmx_be
+update_cycle() {
+    logger -t "$NAME" -p daemon.debug "prplMesh MMX model update cycle"
 
-clean:
-	echo "Nothing to clean"
+    current_model_file=$1; shift;
+    prev_model=/tmp/mmx_prev_model
+    to_update=/tmp/mmx_to_ntf
+
+    > "$to_update"
+
+    [ -f "$current_model_file" ] || touch "$current_model_file"
+    mv "$current_model_file" "$prev_model"
+
+    get_ambiorix_model | sort > "$current_model_file"
+
+    find_changed_objects "$prev_model"         "$current_model_file" "$to_update"
+    find_changed_objects "$current_model_file" "$prev_model"         "$to_update"
+    
+    if [ "$(cat $to_update | wc -l)" != "0" ]; then
+        cat "$to_update" | sort -u | ambiorix_to_mmx_object_name | xargs -n 1 ntfrsend -i 203 -m 120 -l 3 -p
+    fi
+}
+
+get_ambiorix_model() {
+    # Print current Ambiorix model
+    ubus list | grep Controller
+}
+
+find_changed_objects() {
+    # $1 - path to file with "ubus list" output of prev model state
+    # $2 - path to file with "ubus list" output of current model state
+    # $3 - path to file for write list of changed MMX model object names into
+    # Write into "$3" the MMX objects changed/appeard/disappeared in comparison to prev model
+
+    current_model_file=$1; shift;
+    prev_model=$1; shift;
+    to_update=$1; shift
+
+    for obj_name_regex in $(sed -e 's/\.\d\+\./.[[:digit:]]\\+./g' -e 's/\d\+$/[[:digit:]]\\+/' "$current_model_file" | sort -u | grep ':digit:'); do
+        cur_state=$(grep -x $obj_name_regex "$current_model_file" | md5sum -);
+        prev_state=$(grep -x $obj_name_regex "$prev_model" | md5sum -);
+
+        # analyze non-scalar and scalar objects but add to update only non-scalar because scalar objects defined as augment usually
+        if [ "$cur_state" != "$prev_state" ]; then
+            grep -m 1 -x $obj_name_regex "$current_model_file" | grep '\d$' | sed -e 's/\.\d\+\./.{i}./g' -e 's/.\d\+$/.{i}./' >> "$to_update"
+        fi
+    done
+}
+
+ambiorix_to_mmx_object_name() {
+    # :param $1: name of object from prplMesh data model
+    # :return: corresponding MMX object name
+    sed 's/^[[:space:]]*/Device./' -
+}
+
+main "$@"

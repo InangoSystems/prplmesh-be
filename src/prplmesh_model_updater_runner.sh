@@ -1,9 +1,10 @@
+#!/bin/sh
 ################################################################################
 #
 # Copyright (c) 2013-2021 Inango Systems LTD.
 #
 # Author: Inango Systems LTD. <support@inango-systems.com>
-# Creation Date: 20 Jan 2021
+# Creation Date: 10 May 2021
 #
 # The author may be reached at support@inango-systems.com
 #
@@ -65,25 +66,26 @@
 # - professional sub-contract and customization services
 #
 ################################################################################
-ifeq ($(strip $(PREFIX)),)
-    PREFIX := /usr
-endif
 
-LUAPATH ?= $(PREFIX)/lib/lua
+NAME=prplmesh_model_updater
+INCREMENT_UPDATE_TIMEOUT=5
+# timeout to force update whole model
+FULL_UPDATE_TIMEOUT=$((5*60))
 
-all:
-	echo "Nothing to compile"
+CURRENT_MODEL_FILE=/tmp/mmx_cur_model
 
-install:
-	install -d $(DESTDIR)$(LUAPATH)
-	install -m 755 prplmesh-be-utils.lua $(DESTDIR)$(LUAPATH)
+# we need lock file to avoid racings between run update script by init script
+# and by user from shell
+LOCK=/var/lock/$NAME.lock
 
-	install -d $(DESTDIR)$(PREFIX)/bin/mmx_be
-	install -m 755 *get*.lua $(DESTDIR)$(PREFIX)/bin/mmx_be
-	install -m 755 *set*.lua $(DESTDIR)$(PREFIX)/bin/mmx_be
-	install -m 755 *add*.lua $(DESTDIR)$(PREFIX)/bin/mmx_be
-	install -m 755 *del*.lua $(DESTDIR)$(PREFIX)/bin/mmx_be
-	install -m 755 *model_update*.sh $(DESTDIR)$(PREFIX)/bin/mmx_be
+main() {
+    while true; do
+        for n in $(seq $(($FULL_UPDATE_TIMEOUT/$INCREMENT_UPDATE_TIMEOUT))); do
+            flock -n $LOCK /bin/sh /usr/bin/mmx_be/$NAME.sh "$CURRENT_MODEL_FILE"
+            sleep $INCREMENT_UPDATE_TIMEOUT
+        done
+        > "$CURRENT_MODEL_FILE"
+    done
+}
 
-clean:
-	echo "Nothing to clean"
+main "$@"
