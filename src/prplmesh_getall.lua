@@ -110,7 +110,7 @@ local function get_indexes(path)
     end
 
     -- Retrieve output from list method via path from UBus
-    instance = _ubus_connection:call(path, "list", { })
+    instance = _ubus_connection:call(path, "_list", { })
     if not instance then
         error(path .. " not found in UBus")
         _ubus_connection:close()

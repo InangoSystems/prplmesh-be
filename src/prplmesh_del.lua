@@ -82,7 +82,7 @@ require("mmx/ing_utils")
 --]]
 local function del_object(path)
 
-    local result = call_ubus(path, "del", {})
+    local result = call_ubus(path, "_del", {})
     if not result then
         error("Failed to add: " .. tostring(path))
         return false

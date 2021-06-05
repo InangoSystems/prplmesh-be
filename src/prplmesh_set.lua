@@ -132,7 +132,7 @@ local function set_data(path, ap_params)
 
     local data = {parameters = ap_params}
 
-    local ret = call_ubus(path, "set", data)
+    local ret = call_ubus(path, "_set", data)
     if not ret then
         error("Failed to set data.")
         return false
