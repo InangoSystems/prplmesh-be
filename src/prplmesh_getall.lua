@@ -110,7 +110,7 @@ local function get_indexes(path)
     end
 
     -- Retrieve output from list method via path from UBus
-    instance = _ubus_connection:call(path, "list", { })
+    instance = _ubus_connection:call(path, "_list", { })
     if not instance then
         error(path .. " not found in UBus")
         _ubus_connection:close()
@@ -401,11 +401,6 @@ local function get_mmx_out(path)
     end
 
     dfs(root)
-
-    if string.len(mmx_out_str) == 0 then
-        error("Empty output string.")
-        return false
-    end
 
     local mmx = tostring(ing.ResCode.SUCCESS) .. ";" .. mmx_out_str
 

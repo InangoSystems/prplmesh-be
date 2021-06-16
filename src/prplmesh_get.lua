@@ -72,9 +72,9 @@ require("mmx/ing_utils")
 require("prplmesh-be-utils")
 
 --[[
-     Scrit accept Ambiorix object name without placeholders as 1st cmdline arg 
+     Script accept Ambiorix object name without placeholders as 1st cmdline arg
 --]]
-d = call_ubus(arg[1], "get")
+d = call_ubus(arg[1], "_get")
 if not d then
     error("Did not get object from U-Bus")
     ing.utils.exit(ing.ResCode.FAIL)

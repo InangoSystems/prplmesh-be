@@ -82,7 +82,7 @@ require("mmx/ing_utils")
 --]]
 local function add_object(path)
 
-    local result = call_ubus(path, "add", {})
+    local result = call_ubus(path, "_add", {})
     if not result then
         error("Failed to add: " .. tostring(path))
         return false
