@@ -77,7 +77,7 @@ require("prplmesh-be-utils")
     @brief  Function for converting CMD arguments to key-value table.
 
     @param  args Command Line arguments.
-            Example: Controller.Network.AccessPoint 1 -pname SSID -pvalue WiFi
+            Example: Device.WiFi.DataElements.Network.AccessPoint 1 -pname SSID -pvalue WiFi
 
     @return Table which contains list of parameters and values otherwise false.
 --]]
@@ -118,7 +118,7 @@ end
             function provided by Ambiorix library.
 
     @param  path String contains path to object in Data Model.
-            Example: Controller.Network.AccessPoint.1
+            Example: Device.WiFi.DataElements.Network.AccessPoint.1
     @param  ap_params Table which contains list of parameters and value.
 
     @return True on success otherwise false.
@@ -150,7 +150,7 @@ end
 --]]
 local function apply()
 
-    local ret = call_ubus("Controller.Network", "AccessPointCommit", {})
+    local ret = call_ubus("Device.WiFi.DataElements.Network", "AccessPointCommit", {})
     if not ret then
         error("Failed to apply data.")
         return false

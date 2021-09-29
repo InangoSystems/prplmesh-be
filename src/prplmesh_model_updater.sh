@@ -98,7 +98,7 @@ update_cycle() {
 
 get_ambiorix_model() {
     # Print current Ambiorix model
-    ubus list | grep Controller
+    ubus list | grep Device.WiFi.DataElements
 }
 
 find_changed_objects() {
