@@ -87,7 +87,7 @@ end
             function provided by Ambiorix library.
 
     @param  path String contains to object in Data Model.
-            Example: Controller.Network.Device.{i}
+            Example: Device.WiFi.DataElements.Network.Device.{i}
 
     @return  Table which contains list of indexes for path otherwise false.
 --]]
@@ -136,13 +136,13 @@ end
 
 --[[
     @brief  Function splits object path string into list of root and sub-objects.
-            Example: Controller.Network.Device.{i}.Radio.{i}
+            Example: Device.WiFi.DataElements.Network.Device.{i}.Radio.{i}
                      Will be converted in table:
-                        Controller.Network.Device
+                        Device.WiFi.DataElements.Network.Device
                         Radio
 
     @param  path String contains to object in Data Model.
-            Example: Controller.Network.Device.{i}.Radio.{i}
+            Example: Device.WiFi.DataElements.Network.Device.{i}.Radio.{i}
 
     @return Table which contains list of required arguments otherwise false.
 --]]
@@ -190,17 +190,17 @@ end
 
 --[[
     @brief  Calculate path to object.
-            Example: Controller.Network.Device.1.Radio
+            Example: Device.WiFi.DataElements.Network.Device.1.Radio
 
     @param  root_path String with root object path.
-            Example: Controller.Network.Device
+            Example: Device.WiFi.DataElements.Network.Device
 
     @param  obj_path String with path to object.
             Example: Radio
 
     @param  idx Integer index
 
-    @return Path to object (ex: Controller.Network.Device.1.Radio)
+    @return Path to object (ex: Device.WiFi.DataElements.Network.Device.1.Radio)
             otherwise false.
 --]]
 local function get_obj_path(root_path, obj_path, idx)

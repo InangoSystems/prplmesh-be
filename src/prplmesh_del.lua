@@ -114,7 +114,7 @@ function main(args)
     end
 
     if string.match( args[1], "AccessPoint" ) then
-        call_ubus("Controller.Network", "AccessPointCommit", {})
+        call_ubus("Device.WiFi.DataElements.Network", "AccessPointCommit", {})
     end
 
     print(mmx)
