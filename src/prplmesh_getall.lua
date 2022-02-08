@@ -70,6 +70,7 @@
 --]]
 require("mmx/ing_utils")
 require("ubus")
+require("socket")
 
 -- Global variable for saving mmx string
 mmx_out_str = ""
@@ -108,6 +109,9 @@ local function get_indexes(path)
         error("Bad path: " .. tostring(path))
         return false
     end
+
+    -- Required minimum ubus call delay 
+    socket.sleep(0.3)
 
     -- Retrieve output from list method via path from UBus
     instance = _ubus_connection:call(path, "_list", { })

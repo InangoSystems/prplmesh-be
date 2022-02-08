@@ -68,7 +68,7 @@
 ################################################################################
 
 NAME=prplmesh_model_updater
-INCREMENT_UPDATE_TIMEOUT=5
+INCREMENT_UPDATE_TIMEOUT=30
 # timeout to force update whole model
 FULL_UPDATE_TIMEOUT=$((5*60))
 

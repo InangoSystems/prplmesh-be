@@ -70,7 +70,10 @@
 NAME=mmx_model_updater
 
 main() {
-    update_cycle "$@"
+    # Temporary patch for incorrect update script functionality
+    # Replaced to explicit object tree update
+    #update_cycle "$@"
+    ntfrsend -i 201 -p 'prplmesh_be'
 }
 
 
